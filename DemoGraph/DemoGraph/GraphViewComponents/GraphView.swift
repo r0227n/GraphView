@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct GraphView: View {
+public struct GraphView: View {
     let data: [CGFloat]
     let row: Int
     let kindOfGraph: CorrespondingGraph?
@@ -27,21 +27,21 @@ struct GraphView: View {
         self.row = data.count
     }
 
-    var body: some View {
+    public var body: some View {
         switch kindOfGraph {
         case .bar:
-            BarGraph(originY: data.max() ?? 0.0, data: data, item: row)
+            BarGraph(originY: data.max() ?? 0.0, data: data)
         case .none:
             Text("none")
         }
     }
 }
 
-enum CorrespondingGraph {
+public enum CorrespondingGraph {
     case bar
 }
 
-enum CorrespondingColor {
+public enum CorrespondingColor {
     case red
     case blue
     case green
@@ -49,7 +49,7 @@ enum CorrespondingColor {
 
 protocol CatalogOfGraph {
     associatedtype Graph
-    func BarGraph(originY: CGFloat, data: [CGFloat], item: Int) -> Graph
+    func BarGraph(originY: CGFloat, data: [CGFloat]) -> Graph
 }
 
 protocol CatalogOfColor {
@@ -70,19 +70,32 @@ extension GraphView: CatalogOfColor {
 }
 
 extension GraphView: CatalogOfGraph {
-    func BarGraph(originY: CGFloat, data: [CGFloat], item: Int) -> some View {
+    func BarGraph(originY: CGFloat, data: [CGFloat]) -> some View {
+        var graphWidth: CGFloat?
+        var graphHeight: CGFloat?
+        var reducedScaleY: CGFloat = 0.0
+        let spacer: CGFloat = 10.0
         var bar: some View {
-            HStack {
-                ForEach(0..<item){ row in
-                    Rectangle()
-                        .foregroundColor(ColorsGraphLow(color: kindOfColor ?? .blue))
-                        .frame(width: 30.0,
-                               height: data[row], alignment: .center)
-                        .offset(x: 0.0, y: -data[row] / 2) // 表示位置をずらし、Y軸を揃る
+            GeometryReader { geometry in
+                HStack(spacing: spacer) {
+                    ForEach(0..<data.count){ row in
+                        Rectangle()
+                            .foregroundColor(ColorsGraphLow(color: kindOfColor ?? .blue))
+                            .frame(width: graphWidth,
+                                   height: graphHeight, alignment: .center)
+                            .offset(x: 0.0, y: -data[row] / 2) // 表示位置をずらし、Y軸を揃る
+                            .onAppear(perform:{
+                                graphHeight = data[row] * reducedScaleY
+                            })
+                    }
                 }
+                .offset(x: 0.0, y: originY / 2)
+                .clipped() // Viewの切り取り
+                .onAppear(perform:{
+                    graphWidth = geometry.size.width / CGFloat(data.count) - (spacer / CGFloat(data.count))
+                    reducedScaleY = geometry.size.height / CGFloat(data.count)
+                })
             }
-            .offset(x: 0.0, y: originY / 2)
-            .clipped() // Viewの切り取り
         }
         return bar
     }
@@ -92,5 +105,6 @@ extension GraphView: CatalogOfGraph {
 struct GraphView_Previews: PreviewProvider {
     static var previews: some View {
         GraphView(data: [300.0, 200.0])
+            .frame(width: 300,height: 300)
     }
 }
